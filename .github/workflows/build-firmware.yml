@@ -1,6 +1,9 @@
 name: Build Router Firmware
 
 on:
+  schedule:
+    # 每天 UTC 20:00（北京时间 04:00）自动构建一次
+    - cron: '0 20 * * *'
   workflow_dispatch:
     inputs:
       release_type:
@@ -15,6 +18,14 @@ on:
       release_notes:
         description: 'Release Notes'
         required: false
+  # 允许被其他工作流（如 sync-upstream）调用以触发构建
+  workflow_call:
+    inputs:
+      release_type:
+        description: 'Release Type (none/release/prerelease)'
+        required: false
+        default: 'prerelease'
+        type: string
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -107,8 +118,26 @@ jobs:
           retention-days: 30
         if: always()
 
+      - name: Determine release behavior
+        id: rel
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            rt="${{ github.event.inputs.release_type }}"
+          elif [ "${{ github.event_name }}" = "workflow_call" ]; then
+            rt="${{ inputs.release_type }}"
+          else
+            # schedule（每日定时构建）自动以预发布形式发布，固件可直接从 Releases 页面下载
+            rt="prerelease"
+          fi
+          do_release="false"; is_pre="false"
+          [ "$rt" != "none" ] && do_release="true"
+          [ "$rt" = "prerelease" ] && is_pre="true"
+          echo "release_type=$rt"        >> $GITHUB_OUTPUT
+          echo "do_release=$do_release"  >> $GITHUB_OUTPUT
+          echo "is_prerelease=$is_pre"   >> $GITHUB_OUTPUT
+
       - name: Build release body
-        if: github.event.inputs.release_type != 'none'
+        if: steps.rel.outputs.do_release == 'true'
         id: release_body
         env:
           RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
@@ -129,14 +158,15 @@ jobs:
           } >> $GITHUB_OUTPUT
 
       - name: Create Release
-        if: github.event.inputs.release_type != 'none'
+        if: steps.rel.outputs.do_release == 'true'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ format('{0}-{1}', steps.version.outputs.date, steps.version.outputs.repo_commit) }}
           name: ${{ format('{0} - XR1710G Build ({1})', steps.version.outputs.date, steps.version.outputs.repo_commit) }}
           body: ${{ steps.release_body.outputs.body }}
           draft: false
-          prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
+          prerelease: ${{ steps.rel.outputs.is_prerelease == 'true' }}
+          make_latest: "true"
           files: |
             bin/targets/airoha/an7581/*.itb
             bin/targets/airoha/an7581/config.buildinfo

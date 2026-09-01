@@ -52,6 +52,7 @@
   - [mt76 patches](package/kernel/mt76/patches/) 中的 `001`（mt7996 PS sync TLV/MLO 稳定性）与 `9993`（operating-mode rate control）。
   - [mac80211 patch](package/kernel/mac80211/patches/subsys/411-mac80211-export-link-sta-capability-limits.patch) 与 [hostapd patches](package/network/services/hostapd/patches/)（6GHz、EHT、radio mask 及多 VAP 稳定性）。
 - 启动与设备定制：`03_wifi_defaults`（SSID、加密方式、US 区域码）、`03_wireless`（射频参数）、`18-xr1710g-firewall-defaults`（默认软件/硬件 flow offload）、`99-ppe-reload`（无线接口创建后重载防火墙）、`packet-steering.sh`（Wi-Fi worker/CPU 亲和性）、风扇服务、升级平台脚本，以及独立 [luci-app-airoha-recovery](package/luci-app-airoha-recovery/) U-Boot HTTP Recovery 页面。
+- eBPF/BPF 内核支持（为 `daed` 等 eBPF 应用就绪，均在 [config.seed](config.seed) 中开启）：`DEBUG_INFO_BTF`（BPF CO-RE 必需，已关闭 `DEBUG_INFO_REDUCED` 以放行 BTF）、`BPF_SYSCALL`、`BPF_JIT`/`BPF_JIT_DEFAULT_ON`、`CGROUP_BPF`、`BPF_EVENTS`、`BPF_STREAM_PARSER`、`NETKIT`、`XDP_SOCKETS`，以及 TC BPF 链路 `NET_CLS_ACT`/`NET_CLS_BPF`/`NET_ACT_BPF`/`NET_SCH_BPF` 与 `LWTUNNEL`/`LWTUNNEL_BPF`。
 
 ### 网络与无线默认行为
 
@@ -134,6 +135,7 @@
 - `default-settings-chn`（中文默认设置）
 
 **代理与网络核心**
+- `daed` + `luci-app-daed`（基于 eBPF 的代理分流面板，配套 `daed-geoip` / `daed-geosite`）
 - `xray-core` / `simple-obfs-client`
 - `chinadns-ng` / `geoview` / `dns2socks` / `microsocks` / `ipt2socks`
 
@@ -141,15 +143,17 @@
 
 | 工作流 | 触发方式 | 功能 |
 |--------|---------|------|
-| [build-firmware.yml](.github/workflows/build-firmware.yml) | 手动 (workflow_dispatch) | 构建固件并发布 Release |
-| [sync-upstream.yml](.github/workflows/sync-upstream.yml) | 每 3 天定时 + 手动 | 同步 ImmortalWrt 上游 |
+| [build-firmware.yml](.github/workflows/build-firmware.yml) | 每日定时 + 手动 + 工作流调用 | 构建固件并自动发布预发布版 Release（可直接下载） |
+| [sync-upstream.yml](.github/workflows/sync-upstream.yml) | 每日定时 + 手动 | 同步 ImmortalWrt 上游 |
+
+**自动构建与下载**：每日北京时间 04:00 自动构建一次，构建成功后自动发布为预发布版 Release 并标记为 Latest，固件可直接从 [Releases 页面](https://github.com/naoki66/ImmortalWrt-for-Gemtek-XR1710G/releases) 下载。每日 02:00 的上游同步结果会自动并入当天的构建。
 
 **构建配置**：仓库根目录的 [config.seed](config.seed) 是完整配置文件，Action 自动执行 `cp config.seed .config && make defconfig`。
 
 **Release 格式**：
 - Tag：`YYYYMMDD-<short-hash>`
 - 名称：`YYYYMMDD - XR1710G Build (<short-hash>)`
-- 选项：`release` / `prerelease` / `none`
+- 手动触发选项：`release` / `prerelease` / `none`（定时与被调用构建固定为 `prerelease`）
 
 ## 下载
 
