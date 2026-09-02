@@ -62,6 +62,13 @@ gemtek,w1700k-ubi)
 	uci set wireless.radio2.he_bss_color='1'
 	uci set wireless.radio2.he_twt_responder='1'
 
+	# --- default MLO (Multi-Link Operation) off ---
+	# MLO 需要 AP/STA 两端均启用 MLO 才能生效,且对部分旧客户端兼容性欠佳,
+	# 因此默认关闭。需要时可在 LuCI 的"网络 → Wi-Fi MLO"页面或 UCI 中逐接口开启。
+	for section in $(uci -q show wireless | awk -F'[.=]' '/=wifi-iface$/{print $2}'); do
+		uci -q set wireless.${section}.mlo='0'
+	done
+
 	uci commit wireless
 	;;
 esac
