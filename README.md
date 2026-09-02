@@ -136,6 +136,8 @@
 
 **代理与网络核心**
 - `daed` + `luci-app-daed`（基于 eBPF 的代理分流面板，配套 `daed-geoip` / `daed-geosite`）
+- `easytier-noweb` + `luci-app-easytier`（去中心化 mesh VPN，预编译二进制，经自定义 feed [EasyTier/luci-app-easytier](https://github.com/EasyTier/luci-app-easytier) 引入）
+- `pbr` + `luci-app-pbr`（netifd 策略路由）
 - `xray-core` / `simple-obfs-client`
 - `chinadns-ng` / `geoview` / `dns2socks` / `microsocks` / `ipt2socks`
 
